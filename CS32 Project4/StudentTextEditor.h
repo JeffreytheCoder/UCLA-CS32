@@ -30,7 +30,6 @@ public:
 private:
 	list<string> m_lines;
 	list<string>::iterator m_it;
-	Undo* m_undo;
 	int m_col;
 	int m_row;
 };

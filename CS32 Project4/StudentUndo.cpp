@@ -17,9 +17,10 @@ void StudentUndo::submit(const Action action, int row, int col, char ch) {
 		// Only same DELETE and INSERT function counts
 		// Spliting lines doesn't count
 		if (top->action == action && (top->action == DELETE || top->action == INSERT) &&
-			(top->col == col - 1 || top->col == col || top->col == col + 1)) {
+			top->row == row && (top->col == col - 1 || top->col == col || top->col == col + 1)) {
 			op->text += top->text;
 			m_stack.pop();
+			delete top;
 		}
 		else {
 			break;
@@ -36,13 +37,13 @@ StudentUndo::Action StudentUndo::get(int &row, int &col, int& count, std::string
 	Operation* top = m_stack.top();
 	m_stack.pop();
 
-	count = 1;
 	row = top->row;
 	col = top->col;
+	count = 1;
 	text = "";
 
 	if (top->action == INSERT) {
-		count = text.size();
+		count = top->text.length();
 		return DELETE;
 	}
 	else if (top->action == DELETE) {
@@ -55,6 +56,8 @@ StudentUndo::Action StudentUndo::get(int &row, int &col, int& count, std::string
 	else if (top->action == JOIN) {
 		return SPLIT;
 	}
+	delete top;
+	return Action::ERROR;
 }
 
 void StudentUndo::clear() {

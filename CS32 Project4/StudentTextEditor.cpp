@@ -14,7 +14,6 @@ StudentTextEditor::StudentTextEditor(Undo* undo)
  : TextEditor(undo) {
 	m_lines.push_back("");
 	m_it = m_lines.begin();
-	m_undo = undo;
 	m_row = 0;
 	m_col = 0;
 }
@@ -72,7 +71,6 @@ void StudentTextEditor::reset() {
 }
 
 void StudentTextEditor::move(Dir dir) {
-	// TODO: Undo track
 	if (dir == UP) {
 		if (m_row != 0) {
 			m_row--;
@@ -102,12 +100,12 @@ void StudentTextEditor::move(Dir dir) {
 		}
 	}
 	else if (dir == RIGHT) {
-		if (m_col == m_it->length() - 1 && m_row != m_lines.size() - 1) {
+		if (m_col == m_it->length() - 1 && m_row < m_lines.size() - 1) {
 			m_row++;
 			m_it++;
 			m_col = 0;
 		}
-		else {
+		else if (m_col < m_it->length()) {
 			m_col++;
 		}
 	}
@@ -120,43 +118,38 @@ void StudentTextEditor::move(Dir dir) {
 }
 
 void StudentTextEditor::del() {
-	char deletedChar;
 	if (m_col == m_it->length()) {
 		if (m_row != m_lines.size() - 1) {
-			string next = *(++m_it);
-			m_lines.remove(*m_it);
-			m_it--;
-			deletedChar = (*m_it)[m_col];
-			*m_it = m_it->substr(0, m_col) + next;
-			m_undo->submit(Undo::Action::JOIN, m_row, m_col, deletedChar);
+			m_it++;
+			string line = *m_it;
+			m_it = prev(m_lines.erase(m_it));
+			*m_it += line;
+			getUndo()->submit(Undo::Action::JOIN, m_row, m_col, 'a');
 		}
 	}
 	else {
-		deletedChar = (*m_it)[m_col];
-		*m_it = m_it->substr(0, m_col) + m_it->substr(m_col + 1);
-		m_undo->submit(Undo::Action::DELETE, m_row, m_col, deletedChar);
+		char deletedChar = m_it->at(m_col);
+		m_it->erase(m_col, 1);
+		getUndo()->submit(Undo::Action::DELETE, m_row, m_col, deletedChar);
 	}
 }
 
 void StudentTextEditor::backspace() {
-	char backspacedChar;
 	if (m_col == 0) {
-		if (m_row != 0) {
-			string prev = (*(--m_it));
-			m_lines.remove(*m_it);
-			m_it++;
-			backspacedChar = (*m_it)[m_col - 1];
-			*m_it = prev.substr(0, prev.length() - 1) + *m_it;
+		if (m_it != m_lines.begin()) {
+			string line = *m_it;
+			m_it = prev(m_lines.erase(m_it));
+			m_col = m_it->length();
+			*m_it += line;
 			m_row--;
-			m_col = prev.length();
-			m_undo->submit(Undo::Action::JOIN, m_row, m_col, backspacedChar);
+			getUndo()->submit(Undo::Action::JOIN, m_row, m_col, 'a');
 		}
 	}
 	else {
-		backspacedChar = (*m_it)[m_col - 1];
-		*m_it = m_it->substr(0, m_col - 1) + m_it->substr(m_col);
+		char backspacedChar = m_it->at(m_col - 1);
+		m_it->erase(m_col - 1, 1);
 		m_col--;
-		m_undo->submit(Undo::Action::DELETE, m_row, m_col, backspacedChar);
+		getUndo()->submit(Undo::Action::DELETE, m_row, m_col, backspacedChar);
 	}
 	
 }
@@ -164,25 +157,27 @@ void StudentTextEditor::backspace() {
 void StudentTextEditor::insert(char ch) {
 	if (ch == '/t') {
 		for (int i = 0; i < 4; i++) {
-			insert(' ');
+			m_it->insert(m_col, 1, ' ');
+			m_col += 1;
 		}
 	}
 	else {
-		// *m_it = m_it->substr(0, m_col) + ch + m_it->substr(m_col);
-		m_it->insert(m_it->begin() + m_col, ch);
+		m_it->insert(m_col, 1, ch);
 		m_col++;
 	}
-	m_undo->submit(Undo::Action::INSERT, m_row, m_col, ch);
+	getUndo()->submit(Undo::Action::INSERT, m_row, m_col, ch);
 }
 
 void StudentTextEditor::enter() {
-	m_undo->submit(Undo::Action::SPLIT, m_row, m_col);
-	string line = *m_it;
-	*m_it = line.substr(0, m_col);
+	string prev = m_it->substr(0, m_col);
+	string next = m_it->substr(m_col);
+	*m_it = prev;
 	m_it++;
-	m_lines.insert(m_it, line.substr(m_col));
-	m_row++;
+	m_it = m_lines.insert(m_it, next);
+
+	getUndo()->submit(Undo::SPLIT, m_row, m_col, 'a');
 	m_col = 0;
+	m_row += 1;
 }
 
 void StudentTextEditor::getPos(int& row, int& col) const {
@@ -192,13 +187,14 @@ void StudentTextEditor::getPos(int& row, int& col) const {
 
 int StudentTextEditor::getLines(int startRow, int numRows, std::vector<std::string>& lines) const {
 	if (startRow < 0 || startRow >= m_lines.size() || numRows < 0) return -1;
-	int count = 0;
+
+	lines.clear();
 	list<string>::const_iterator it = m_lines.begin();
-	while (it != m_lines.end()) {
-		if (count >= startRow + numRows) break;
-		if (count >= startRow) {
-			lines[count] = *it;
-		}
+	advance(it, startRow);
+
+	int count = 0;
+	while (count < numRows && it != m_lines.end()) {
+		lines.push_back(*it);
 		count++;
 		it++;
 	}
@@ -210,33 +206,35 @@ void StudentTextEditor::undo() {
 	int undoCount;
 	string undoText;
 
-	Undo::Action undoAction = m_undo->get(undoRow, undoCol, undoCount, undoText);
+	Undo::Action undoAction = getUndo()->get(undoRow, undoCol, undoCount, undoText);
 	if (undoAction == Undo::Action::ERROR) {
 		return;
 	}
+	m_it = next(m_lines.begin(), undoRow);
 	m_row = undoRow;
 	m_col = undoCol;
-	for (int i = 0; i < undoRow; i++) {
-		m_it++;
-	}
 
 	if (undoAction == Undo::Action::INSERT) {
-		for (char undoChar : undoText) {
-			insert(undoChar);
-		}
+		m_it->insert(m_col, undoText);
+		m_col += undoText.length();
 	}
 	else if (undoAction == Undo::Action::DELETE) {
-		for (int i = 0; i < undoCount; i++) {
-			del();
-		}
+		string::iterator it = m_it->begin();
+		m_it->erase(next(it, m_col - undoCount), next(it, m_col));
+		m_col -= undoCount;
 	}
 	else if (undoAction == Undo::Action::SPLIT) {
-		enter();
+		string prev = m_it->substr(0, m_col);
+		string next = m_it->substr(m_col);
+		*m_it = prev;
+		m_it++;
+		m_it = m_lines.insert(m_it, next);
+		m_it--;
 	}
 	else if (undoAction == Undo::Action::JOIN) {
-		string next = *(++m_it);
-		m_lines.remove(*m_it);
-		m_it--;
-		*m_it = *m_it + next;
+		m_it++;
+		string line = *m_it;
+		m_it = prev(m_lines.erase(m_it));
+		*m_it += line;
 	}
 }
