@@ -12,19 +12,25 @@ void StudentUndo::submit(const Action action, int row, int col, char ch) {
 	op->col = col;
 	op->text.push_back(ch);
 
-	while (!m_stack.empty()) {
-		Operation* top = m_stack.top();
-		// Only same DELETE and INSERT function counts
-		// Spliting lines doesn't count
-		if (top->action == action && (top->action == DELETE || top->action == INSERT) &&
-			top->row == row && (top->col == col - 1 || top->col == col || top->col == col + 1)) {
+	if (m_stack.empty()) {
+		m_stack.push(op);
+		return;
+	}
+	Operation* top = m_stack.top();
+	if (op->action == DELETE && top->action == DELETE && op->row == top->row) {
+		if (op->col == top->col) {  // del
+			op->text = top->text + op->text;
+		}
+		else if (op->col = top->col - 1) {  // backspace
 			op->text += top->text;
-			m_stack.pop();
-			delete top;
 		}
-		else {
-			break;
-		}
+		m_stack.pop();
+		delete top;
+	}
+	else if (op->action == INSERT && top->action == INSERT && op->row == top->row) {
+		op->text += top->text;
+		m_stack.pop();
+		delete top;
 	}
 	m_stack.push(op);
 }

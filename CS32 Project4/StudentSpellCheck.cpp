@@ -39,14 +39,12 @@ bool StudentSpellCheck::searchNode(string word) {
 	struct TrieNode* n = m_root;
 	for (int i = 0; i < word.length(); i++) {
 		int index = charToIndex(word.at(i));
-		if (0 <= index <= 26) {
-			if (n == nullptr || n->children[index] == nullptr) {
-				return false;
-			}
-			n = n->children[index];
+		if (n->children[index] == nullptr) {
+			return false;
 		}
+		n = n->children[index];
 	}
-	return (n != nullptr && n->isEndOfWord);
+	return n->isEndOfWord;
 }
 
 bool StudentSpellCheck::load(std::string dictionaryFile) {
@@ -67,18 +65,19 @@ bool StudentSpellCheck::load(std::string dictionaryFile) {
 }
 
 bool StudentSpellCheck::spellCheck(std::string word, int max_suggestions, std::vector<std::string>& suggestions) {
-	for (char c : word) {
-		putchar(tolower(c));
+	string loweredWord = "";
+	for (int i = 0; i < word.length(); i++) {
+		loweredWord.push_back(tolower(word.at(i)));
 	}
 
-	if (searchNode(word)) {
+	if (searchNode(loweredWord)) {
 		return true;
 	}
 	suggestions.clear();
 
-	for (int i = 0; i < word.length(); i++) {
-		string strBefore = word.substr(0, i);
-		string strAfter = word.substr(i + 1);
+	for (int i = 0; i < loweredWord.length(); i++) {
+		string strBefore = loweredWord.substr(0, i);
+		string strAfter = loweredWord.substr(i + 1);
 		for (int j = 0; j < ALPHABET_SIZE; j++) {
 			char alter;
 			if (j == ALPHABET_SIZE - 1) {

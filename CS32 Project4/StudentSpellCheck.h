@@ -48,4 +48,4 @@ private:
 	TrieNode* m_root;
 };
 
-#endif  // STUDENTSPELLCHECK_H_
+#endif // STUDENTSPELLCHECK_H_

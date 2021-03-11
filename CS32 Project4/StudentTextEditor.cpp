@@ -219,9 +219,8 @@ void StudentTextEditor::undo() {
 		m_col += undoText.length();
 	}
 	else if (undoAction == Undo::Action::DELETE) {
-		string::iterator it = m_it->begin();
-		m_it->erase(next(it, m_col - undoCount), next(it, m_col));
 		m_col -= undoCount;
+		m_it->erase(m_col, undoCount);
 	}
 	else if (undoAction == Undo::Action::SPLIT) {
 		string prev = m_it->substr(0, m_col);
