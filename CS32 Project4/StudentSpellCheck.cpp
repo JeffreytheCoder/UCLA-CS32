@@ -15,38 +15,6 @@ StudentSpellCheck::~StudentSpellCheck() {
 	clearTrie(m_root);
 }
 
-int StudentSpellCheck::charToIndex(char c) {
-	if (c == 39) {  // is /
-		return 26;
-	}
-	else {
-		return c - 'a';
-	}
-}
-
-void StudentSpellCheck::insertNode(string word) {
-	struct TrieNode* n = m_root;
-	for (int i = 0; i < word.length(); i++) {
-		int index = charToIndex(word.at(i));
-		if (n->children[index] == nullptr)
-			n->children[index] = new TrieNode;
-		n = n->children[index];
-	}
-	n->isEndOfWord = true;
-}
-bool StudentSpellCheck::searchNode(string word) {
-	if (word == "") return true;
-	struct TrieNode* n = m_root;
-	for (int i = 0; i < word.length(); i++) {
-		int index = charToIndex(word.at(i));
-		if (n->children[index] == nullptr) {
-			return false;
-		}
-		n = n->children[index];
-	}
-	return n->isEndOfWord;
-}
-
 bool StudentSpellCheck::load(std::string dictionaryFile) {
 	ifstream inputFile(dictionaryFile);
 	if (inputFile.is_open()) {
@@ -100,8 +68,8 @@ bool StudentSpellCheck::spellCheck(std::string word, int max_suggestions, std::v
 
 void StudentSpellCheck::spellCheckLine(const std::string& line, std::vector<SpellCheck::Position>& problems) {
 	string loweredLine = "";
-	for (char c : line) {
-		loweredLine += putchar(tolower(c));
+	for (int i = 0; i < line.length(); i++) {
+		loweredLine.push_back(tolower(line.at(i)));
 	}
 	loweredLine += ' ';  // To detect the last word in line
 	

@@ -16,14 +16,20 @@ class StudentSpellCheck : public SpellCheck {
 public:
 	StudentSpellCheck();
 	virtual ~StudentSpellCheck();
-	int charToIndex(char c);
-	void insertNode(string word);
-	bool searchNode(string word);
 	bool load(std::string dict_file);
 	bool spellCheck(std::string word, int maxSuggestions, std::vector<std::string>& suggestions);
 	void spellCheckLine(const std::string& line, std::vector<Position>& problems);
 
 private:
+	int charToIndex(char c) {
+		if (c == 39) {  // is /
+			return 26;
+		}
+		else {
+			return c - 'a';
+		}
+	};
+
 	struct TrieNode {
 		TrieNode() {
 			for (int i = 0; i < ALPHABET_SIZE; i++) {
@@ -34,6 +40,32 @@ private:
 		TrieNode* children[ALPHABET_SIZE];
 		bool isEndOfWord;
 	};
+	TrieNode* m_root;
+
+	void insertNode(string word) {
+		struct TrieNode* n = m_root;
+		for (int i = 0; i < word.length(); i++) {
+			int index = charToIndex(word.at(i));
+			if (n->children[index] == nullptr)
+				n->children[index] = new TrieNode;
+			n = n->children[index];
+		}
+		n->isEndOfWord = true;
+	};
+
+	bool searchNode(string word) {
+		if (word == "") return true;
+		struct TrieNode* n = m_root;
+		for (int i = 0; i < word.length(); i++) {
+			int index = charToIndex(word.at(i));
+			if (n->children[index] == nullptr) {
+				return false;
+			}
+			n = n->children[index];
+		}
+		return n->isEndOfWord;
+	};
+
 	void clearTrie(TrieNode* n) {
 		if (n->children == nullptr) {
 			return;
@@ -45,7 +77,6 @@ private:
 		}
 		delete n;
 	}
-	TrieNode* m_root;
 };
 
 #endif // STUDENTSPELLCHECK_H_
